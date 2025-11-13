@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>URL Shortener</title>
+</head>
+<body>
+    <div class="container">
+        <h1>URL Shortener</h1>
+        <form id="shorten-form">
+            <div>
+                <label for="url">Enter URL :-</label>
+                <input type="url" id="url" name="url" required>
+            </div>
+            <div>
+                <label for="shortcode">Enter ShortCode :-</label>
+                <input type="text" id="shortcode" name="shortcode" placeholder="(Optional)">
+            </div>
+            <button type="submit">Shorten</button>
+        </form>
+
+        <h2>Shortened URLs</h2>
+        <ul id="shortened-url"></ul>
+    </div>
+
+    <script>
+        // ✅ Fetch and display shortened URLs
+        const fetchShortenedUrl = async () => {
+            try {
+                const response = await fetch("/links");
+                if (!response.ok) throw new Error("Failed to fetch links");
+                const links = await response.json();
+
+                const list = document.getElementById("shortened-url");
+                list.innerHTML = "";
+
+                for (const link of links) {
+                    const li = document.createElement("li");
+                    li.innerHTML = `
+                        <a href="${link.url}" target="_blank">
+                            ${window.location.origin}/${link.shortcode}
+                        </a>
+                        <button class="remove-btn" data-code="${link.shortcode}">
+                            Remove
+                        </button>
+                    `;
+                    list.appendChild(li);
+                }
+
+                // ✅ Add remove button event listeners
+                document.querySelectorAll(".remove-btn").forEach(btn => {
+                    btn.addEventListener("click", async (e) => {
+                        const code = e.target.getAttribute("data-code");
+                        if (confirm(`Delete shortcode "${code}"?`)) {
+                            await deleteShortLink(code);
+                            fetchShortenedUrl();
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        // ✅ Function to delete a short link
+        const deleteShortLink = async (shortcode) => {
+            try {
+                const res = await fetch(`/delete/${shortcode}`, {
+                    method: "DELETE"
+                });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    alert(msg);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        // ✅ Handle form submission
+        document.getElementById('shorten-form')
+        .addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const url = formData.get('url');
+            const shortcode = formData.get('shortcode');
+
+            try {
+                const res = await fetch("/shorten", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url, shortCode: shortcode })
+                });
+
+                if (res.ok) {
+                    alert("Short URL created successfully!");
+                    event.target.reset();
+                    fetchShortenedUrl();
+                } else {
+                    const errMessage = await res.text();
+                    alert(errMessage);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        });
+
+        // ✅ Load links initially
+        fetchShortenedUrl();
+    </script>
+</body>
+</html>
