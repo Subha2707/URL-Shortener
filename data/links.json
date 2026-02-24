@@ -1,9 +1,5 @@
 [
   {
-    "url": "https://www.google.com/",
-    "shortcode": "Google"
-  },
-  {
     "url": "https://chatgpt.com/",
     "shortcode": "ChatGpt"
   },
@@ -14,5 +10,9 @@
   {
     "url": "https://www.netflix.com/in/",
     "shortcode": "NetFlix"
+  },
+  {
+    "url": "https://mlhealthpredictor.onrender.com",
+    "shortcode": "MLHealthPredictor"
   }
 ]

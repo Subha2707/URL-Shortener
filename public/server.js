@@ -8,11 +8,11 @@ const PORT = 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Paths
+//  Paths
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DATA_FILE = path.join(DATA_DIR, "links.json");
 
-// ✅ Helper: Serve static files
+//  Helper: Serve static files
 const serveFile = async (res, filePath, contentType) => {
   try {
     const data = await readFile(filePath);
@@ -24,7 +24,7 @@ const serveFile = async (res, filePath, contentType) => {
   }
 };
 
-// ✅ Load links safely
+//  Load links safely
 const loadLinks = async () => {
   try {
     const data = await readFile(DATA_FILE, "utf-8");
@@ -40,12 +40,12 @@ const loadLinks = async () => {
   }
 };
 
-// ✅ Save links
+//  Save links
 const saveLinks = async (links) => {
   await writeFile(DATA_FILE, JSON.stringify(links, null, 2));
 };
 
-// ✅ Create server
+// Create server
 const server = createServer(async (req, res) => {
   // ---- GET Requests ----
   if (req.method === "GET") {
@@ -117,5 +117,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
