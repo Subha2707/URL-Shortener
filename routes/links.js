@@ -1,5 +1,5 @@
 import express from "express";
-import { loadLinks, saveLinks } from "../server.js";
+import Link from "../models/Link.js";
 
 const router = express.Router();
 
@@ -8,19 +8,30 @@ router.get("/", async (req, res) => {
   const search = req.query.search || "";
   const limit = 20;
 
-  let links = await loadLinks();
+
+  //Search Functionality
+
+  let query = {};
 
   if (search) {
-    links = links.filter(l =>
-      l.url.includes(search) || l.shortcode.includes(search)
-    );
+    query = {
+      $or: [
+        { url: { $regex: search, $options: "i" } },
+        { shortcode: { $regex: search, $options: "i" } }
+      ]
+    };
   }
+
+  let links = await Link.find(query);
+
+  //Pagination
 
   const totalPages = Math.ceil(links.length / limit);
   const start = (page - 1) * limit;
   const paginated = links.slice(start, start + limit);
 
-  const cards = paginated.map(link => `
+  const cards = paginated.map(link => 
+    `
     <div class="link-card">
       <div class="card-header">
         <span class="click-badge">📊 ${link.clicks || 0}</span>
@@ -76,10 +87,14 @@ router.get("/", async (req, res) => {
   `);
 });
 
+// Delete Logic 
+
 router.post("/delete/:shortcode", async (req, res) => {
-  let links = await loadLinks();
-  links = links.filter(l => l.shortcode !== req.params.shortcode);
-  await saveLinks(links);
+  await Link.deleteOne({
+    shortcode: req.params.shortcode
+  });
+
+  // Redirect logic
   res.redirect("/links");
 });
 

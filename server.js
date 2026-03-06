@@ -1,52 +1,37 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import crypto from "crypto";
-import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import express from "express";
+import { readFile } from "fs/promises";
+
 import linksRouter from "./routes/links.js";
+import connectDB from "./config/db.js";
+import Link from "./models/Link.js";
 
 const app = express();
 const PORT = 3000;
 
+// Connect MongoDB
+connectDB();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-export const DATA_DIR = path.join(__dirname, "data");
-export const DATA_FILE = path.join(DATA_DIR, "links.json");
 
 app.use(express.static("public"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// ---------- Helper Functions ----------
-export const loadLinks = async () => {
-  try {
-    const data = await readFile(DATA_FILE, "utf-8");
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      await mkdir(DATA_DIR, { recursive: true });
-      await writeFile(DATA_FILE, JSON.stringify([]));
-      return [];
-    }
-    throw error;
-  }
-};
-
-export const saveLinks = async (links) => {
-  await writeFile(DATA_FILE, JSON.stringify(links, null, 2));
-};
 
 // ---------- Home ----------
 app.get("/", async (req, res) => {
   const filePath = path.join(__dirname, "views", "index.html");
   const file = await readFile(filePath, "utf-8");
 
-  const links = await loadLinks();
-  const limitedLinks = links.slice(0, 5);
+  const links = await Link.find().limit(5);
 
-  const listItems = limitedLinks.map(link => `
+  const listItems = links.map(link => `
     <li class="short-card">
       <div class="short-info">
         <a href="/${link.shortcode}" target="_blank">
@@ -59,23 +44,34 @@ app.get("/", async (req, res) => {
       </form>
     </li>
   `).join("");
+
   res.send(file.replace("{{shortened_urls}}", listItems));
 });
 
-// ---------- Shorten ----------
+
+// ---------- Shorten URL ----------
 app.post("/", async (req, res) => {
   const { url: originalUrl, shortcode } = req.body;
-  if (!originalUrl) return res.status(400).send("URL required");
 
-  const finalShortCode = shortcode || crypto.randomBytes(4).toString("hex");
-  const links = await loadLinks();
-
-  if (links.some(l => l.shortcode === finalShortCode)) {
-    return res.status(400).send("Shortcode exists");
+  if (!originalUrl) {
+    return res.status(400).send("URL required");
   }
 
-  links.push({ url: originalUrl, shortcode: finalShortCode, clicks: 0 });
-  await saveLinks(links);
+  const finalShortCode = shortcode || crypto.randomBytes(4).toString("hex");
+
+  const exists = await Link.findOne({
+    shortcode: finalShortCode
+  });
+
+  if (exists) {
+    return res.status(400).send("Shortcode already exists");
+  }
+
+  await Link.create({
+    url: originalUrl,
+    shortcode: finalShortCode,
+    clicks: 0
+  });
 
   res.redirect("/");
 });
@@ -84,15 +80,20 @@ app.post("/", async (req, res) => {
 // ---------- Links Router ----------
 app.use("/links", linksRouter);
 
+
 // ---------- Redirect ----------
 app.get("/:shortcode", async (req, res) => {
-  const links = await loadLinks();
-  const match = links.find(l => l.shortcode === req.params.shortcode);
 
-  if (!match) return res.status(404).send("Not found");
+  const match = await Link.findOne({
+    shortcode: req.params.shortcode
+  });
 
-  match.clicks = (match.clicks || 0) + 1;
-  await saveLinks(links);
+  if (!match) {
+    return res.status(404).send("Short link not found");
+  }
+
+  match.clicks += 1;
+  await match.save();
 
   res.redirect(match.url);
 });
